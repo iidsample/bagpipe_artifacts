@@ -298,25 +298,28 @@ def return_args_oracle_server_caser(
 
 
 def return_data_move_args_original(private_ip_trainers):
-    run_args_move_files = [
-        {
-            "cmd": "aws s3 cp s3://recommendation-data-bagpipe/kaggle_criteo_info ./ && aws s3 cp s3://recommendation-data-bagpipe/emb_table_info.txt ./ && aws s3 cp s3://recommendation-data-bagpipe/emb_table_info_h.txt ./"
-        }
-        for i in range(len(private_ip_trainers))
-    ]
+    # run_args_move_files = [
+    # {
+    # "cmd": "aws s3 cp s3://recommendation-data-bagpipe/kaggle_criteo_info ./ && aws s3 cp s3://recommendation-data-bagpipe/emb_table_info.txt ./ && aws s3 cp s3://recommendation-data-bagpipe/emb_table_info_h.txt ./ "
+    # }
+    # for i in range(len(private_ip_trainers))
+    # ]
+    run_args_move_files = [{"cmd": "hostname"} for i in range(len(private_ip_trainers))]
 
     return run_args_move_files
 
 
-run_args_oc_warmnup = [
-    {
-        "cmd": "aws s3 cp s3://recommendation-data-bagpipe/kaggle_criteo_info ./ && aws s3 cp s3://recommendation-data-bagpipe/kaggle_8 ./kaggle_8 --recursive && aws s3 cp s3://recommendation-data-bagpipe/emb_table_info.txt ./ && aws s3 cp s3://recommendation-data-bagpipe/fgcnn_16 ./fgcnn_16 --recursive && aws s3 cp s3://recommendation-data-bagpipe/emb_table_info_h.txt ./"
-    }
-]
-
+# run_args_oc_warmnup = [
+# {
+# "cmd": "aws s3 cp s3://recommendation-data-bagpipe/kaggle_criteo_info ./ && aws s3 cp s3://recommendation-data-bagpipe/kaggle_8 ./kaggle_8 --recursive && aws s3 cp s3://recommendation-data-bagpipe/emb_table_info.txt ./ && aws s3 cp s3://recommendation-data-bagpipe/fgcnn_16 ./fgcnn_16 --recursive && aws s3 cp s3://recommendation-data-bagpipe/emb_table_info_h.txt ./"
+# }
+# ]
+# for the ami all the data is moved we do not need aws cp.
+run_args_oc_warmnup = [{"cmd": "find ./kaggle_8/ -name '*.txt' -exec wc -l {} \;"}]
 run_args_ebs_warmnup = [
     {
-        "cmd": "aws s3 cp s3://recommendation-data-bagpipe/kaggle_criteo_info ./ && aws s3 cp s3://recommendation-data-bagpipe/emb_table_info.txt ./ && aws s3 cp s3://recommendation-data-bagpipe/emb_table_info_h.txt ./"
+        "cmd": "find ./kaggle_8/ -name '*.txt' -exec wc -l {} \;"
+        # "aws s3 cp s3://recommendation-data-bagpipe/kaggle_criteo_info ./ && aws s3 cp s3://recommendation-data-bagpipe/emb_table_info.txt ./ && aws s3 cp s3://recommendation-data-bagpipe/emb_table_info_h.txt ./"
     }
 ]
 
@@ -498,7 +501,8 @@ def run_large_scale():
         # "ami_id": "ami-0f07487e2b2761b0a", # nv old
         # "ami_id": "ami-04e4121bc8f056792", # oregon old
         # "ami_id": "ami-00cfdc3a2d9df3424",
-        "ami_id": "ami-00893001ccd9f85b9",
+        # "ami_id": "ami-00893001ccd9f85b9",
+        "ami_id": "ami-05970907622cf95de",
         "ssh_username": "ubuntu",
         "iam_role": "ec2-s3-final",
         "instance_type": "p3.2xlarge",
@@ -508,17 +512,7 @@ def run_large_scale():
         "security_group": ["pytorch-distributed"],
     }
 
-    # launching trainers
-    launch_cfg["instance_type"] = "p3.2xlarge"
-    launch_cfg["method"] = "onDemand"
-    launch_cfg["instance_count"] = 8
-    (
-        private_ip_trainers,
-        public_ip_trainers,
-        instance_ids_trainers,
-    ) = launch_instances_on_demand(launch_cfg)
-
-    p3_az = get_az(instance_ids_trainers[0], launch_cfg)
+    # p3_az = get_az(instance_ids_trainers[0], launch_cfg)
 
     # launching oracle cacher
     launch_cfg["instance_type"] = "c5.18xlarge"
@@ -550,10 +544,6 @@ def run_large_scale():
     client_oracle_cacher = ParallelSSHClient(
         [public_ip_oracle_cacher], user="ubuntu", pkey=launch_cfg["key_path"]
     )
-    # trainer client
-    client_trainers = ParallelSSHClient(
-        public_ip_trainers, user="ubuntu", pkey=launch_cfg["key_path"]
-    )
     # client for emb server
     client_emb_server = ParallelSSHClient(
         [public_ip_emb_server], user="ubuntu", pkey=launch_cfg["key_path"]
@@ -561,13 +551,7 @@ def run_large_scale():
 
     # trainer client warmup ebs
 
-    run_args_get_data = return_data_move_args_original(private_ip_trainers)
-
     time.sleep(60)
-
-    output_trainers = client_trainers.run_command(
-        "%(cmd)s", host_args=run_args_get_data
-    )
 
     output_line_count_oc = client_oracle_cacher.run_command(
         "%(cmd)s", host_args=run_args_oc_warmnup
@@ -577,10 +561,6 @@ def run_large_scale():
         "%(cmd)s", host_args=run_args_ebs_warmnup
     )
 
-    for hosts_out in output_trainers:
-        for line in hosts_out.stdout:
-            print(line)
-
     for hosts_out in output_line_count_oc:
         for line in hosts_out.stdout:
             print(line)
@@ -588,6 +568,31 @@ def run_large_scale():
     for hosts_out in output_line_count_ebs:
         for line in hosts_out.stdout:
             print(line)
+
+    # launching trainers
+    launch_cfg["instance_type"] = "p3.2xlarge"
+    launch_cfg["method"] = "onDemand"
+    launch_cfg["instance_count"] = 8
+    (
+        private_ip_trainers,
+        public_ip_trainers,
+        instance_ids_trainers,
+    ) = launch_instances_on_demand(launch_cfg)
+
+    # trainer client
+    client_trainers = ParallelSSHClient(
+        public_ip_trainers, user="ubuntu", pkey=launch_cfg["key_path"]
+    )
+
+    run_args_get_data = return_data_move_args_original(private_ip_trainers)
+    output_trainers = client_trainers.run_command(
+        "%(cmd)s", host_args=run_args_get_data
+    )
+    for hosts_out in output_trainers:
+        for line in hosts_out.stdout:
+            print(line)
+
+    # trainer launches setup
 
     batch_size = 16384
     kaggle_size = [4000000, 7000000, 15000000, 30000000]
