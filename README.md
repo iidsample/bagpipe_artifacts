@@ -1,6 +1,24 @@
 ## Replicating for SOSP artifact evaluation.
-For performing artifact evaluation and reproducing results of Bagpipe. We have provided an AMI.
-The Artifact evaluation committe can use this AMI to reproduce the results of Bagpipe.
+For performing artifact evaluation and reproducing results of Bagpipe. 
+We have provided reviewers with a private key and the ip address of a instance. 
+The authors can ssh into the instance and then run the following commands.
+```
+source /home/ubuntu/ptorch/bin/activate
+cd bagpipe_reset
+python ec2_launcher_six_models.py
+```
+This script will automatically launch an ec2 cluster with the right AMI and then launch the right scripts on each machine of the cluster.
+By default this script will run the DLRM model. The reviewers can modify the specific models to run by changing the arguments around Line 600 in the ec2_launcher_six_models.py. 
+Post running this script will automatically terminate the cluster to save on EC2 costs and copy back the log files from the trainers.
+The file names will include the prefix training\_worker, followed by a time stamp and then model name, global batch size etc. 
+The reviewers can then parse the log file using parse_worker_file.py.
+```
+python parse_worker_file.py file_name
+```
+This script will output the Average per iter time and the respective standard deviation.
+This scripts will reproduce the numbers for Bagpipe in Figure 9 on the DLRM model.
+
+
 
 #### Using the AWS launch script 
 All the evaluation performed for Bagpipe uses distributed setup. In order to reduce the effort of allocating resources on AWS, we provide an AWS launch script. 
@@ -22,6 +40,7 @@ Please look at the launch_cfg. Within the launch_cfg you would need to update th
 
 Please make sure that the security group has all the ports open and allows traffic from all IP addresses. 
 
+All the data is present in the AMI. However, it is known quirk with AWS that first read from a newly launched instance with AMI will be slow. So we perform a warmup by counting the number of lines. Please be patient with this as this can take time.
 #### Reproducing Results of Bagpipe on Different Models
 
 Once you launch ec2_launcher_six_models.py. The script will automatically allocate resources. And launch the training. 
