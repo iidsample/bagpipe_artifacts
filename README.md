@@ -16,8 +16,7 @@ The reviewers can then parse the log file using parse_worker_file.py.
 python parse_worker_file.py file_name
 ```
 This script will output the Average per iter time and the respective standard deviation.
-This scripts will reproduce the numbers for Bagpipe in Figure 9 on the DLRM model.
-
+This scripts will reproduce the numbers for Bagpipe in Figure 9 on the DLRM model by outputing the Average per iter time and the respective standard deviation.
 
 
 #### Using the AWS launch script 
