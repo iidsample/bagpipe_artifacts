@@ -19,6 +19,15 @@ This script will output the Average per iter time and the respective standard de
 This scripts will reproduce the numbers for Bagpipe in Figure 9 on the DLRM model by outputing the Average per iter time and the respective standard deviation.
 
 
+##### Replicating torchrec baseline
+To replicate torchrec baseline. Please run - 
+```
+python ec2_launcher_six_models_torchrec_baseline.py
+```
+The script launches DLRM model and collects back the right log files. The reviewers can look at the end of log file to view per iteration time.
+Please note for Bagpipe the batch size is specified per node, e.g., 2048 on 8 nodes will translate to global batch size 16384.
+
+
 #### Using the AWS launch script 
 All the evaluation performed for Bagpipe uses distributed setup. In order to reduce the effort of allocating resources on AWS, we provide an AWS launch script. 
 The AWS launch script given right credentials will automatically launch resources and perform evaluation.
